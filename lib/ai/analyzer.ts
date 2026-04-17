@@ -15,7 +15,7 @@ import { computeSimilarity } from './similarity';
 import { detectSuspiciousPhrases } from './explainer';
 
 // ================================
-// 🔥 CLEAN TEXT (FIXES OCR ISSUES)
+// 🔥 CLEAN TEXT (OCR FIX)
 // ================================
 function cleanText(text: string): string {
   return text
@@ -26,7 +26,7 @@ function cleanText(text: string): string {
 }
 
 // ================================
-// 🔥 STRONG CLASSIFIER (FINAL)
+// 🔥 FINAL CLASSIFIER (FUZZY + STRONG)
 // ================================
 function classifyClaimRule(text: string): ClassificationLabel {
   const t = cleanText(text);
@@ -35,43 +35,33 @@ function classifyClaimRule(text: string): ClassificationLabel {
   // ❌ FALSE (TOP PRIORITY)
   // ====================
   if (
-    t.includes("without") &&
+    t.includes("without") ||
     (
-      t.includes("material") ||
-      t.includes("materials") ||
-      t.includes("energy") ||
-      t.includes("resource") ||
-      t.includes("resources") ||
-      t.includes("power") ||
-      t.includes("fuel") ||
-      t.includes("input")
+      t.includes("no") &&
+      (
+        t.includes("material") ||
+        t.includes("energy") ||
+        t.includes("resource") ||
+        t.includes("fuel") ||
+        t.includes("power")
+      )
     )
   ) {
     return "false";
   }
 
-  if (
-    t.includes("no material") ||
-    t.includes("no materials") ||
-    t.includes("no energy") ||
-    t.includes("no resources") ||
-    t.includes("no input")
-  ) {
-    return "false";
-  }
-
   // ====================
-  // 🚀 EXAGGERATED
+  // 🚀 EXAGGERATED (FUZZY)
   // ====================
   if (
-    t.includes("entire world") ||
-    t.includes("global") ||
     t.includes("100") ||
-    t.includes("100%") ||
+    t.includes("entire") ||
+    t.includes("world") ||
+    t.includes("global") ||
     t.includes("completely") ||
-    t.includes("eliminating all") ||
-    t.includes("ending all") ||
-    t.includes("for the world")
+    t.includes("all") ||
+    t.includes("eliminating") ||
+    t.includes("ending")
   ) {
     return "exaggerated";
   }
@@ -82,13 +72,13 @@ function classifyClaimRule(text: string): ClassificationLabel {
   if (
     (/\d/.test(t) || t.includes("%")) &&
     (t.includes("between") || t.includes("from") || t.includes("during")) &&
-    (t.includes("verified") || t.includes("iso") || t.includes("certified"))
+    (t.includes("iso") || t.includes("verified") || t.includes("certified"))
   ) {
     return "genuine";
   }
 
   // ====================
-  // ⚠️ MISLEADING (DEFAULT)
+  // ⚠️ DEFAULT
   // ====================
   return "misleading";
 }
@@ -118,7 +108,7 @@ export async function analyzeClaimSimulated(
     await delay(500);
   }
 
-  // 🔥 CLEAN TEXT (CRITICAL FIX)
+  // 🔥 CLEAN TEXT (IMPORTANT)
   const cleanedText = cleanText(textToAnalyze);
 
   // Step 2: NLP
@@ -126,7 +116,7 @@ export async function analyzeClaimSimulated(
   await delay(1200);
   const nlpResult = analyzeNLP(cleanedText);
 
-  // 🔥 FINAL OVERRIDE (RULE > NLP)
+  // 🔥 FORCE FINAL LABEL (RULE OVERRIDES NLP)
   const finalLabel = classifyClaimRule(cleanedText);
   nlpResult.label = finalLabel;
 
@@ -143,7 +133,7 @@ export async function analyzeClaimSimulated(
   await delay(800);
   const suspiciousPhrases = detectSuspiciousPhrases(cleanedText);
 
-  // Step 5: Risk
+  // Step 5: Risk calculation
   onStepChange(5);
   await delay(600);
   const riskScores = calculateRiskScores(
