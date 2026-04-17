@@ -14,47 +14,74 @@ import { computeSimilarity } from './similarity';
 import { detectSuspiciousPhrases } from './explainer';
 
 // ================================
-// RULE-BASED CLASSIFIER
+// 🔥 STRONG RULE-BASED CLASSIFIER
 // ================================
 function classifyClaimRule(text: string): ClassificationLabel {
   const t = text.toLowerCase();
 
-  // ❌ FALSE
+  // =========================
+  // ❌ FALSE (VERY STRONG)
+  // =========================
   if (
     t.includes("without any") ||
+    t.includes("without using") ||
+    t.includes("without water") ||
+    t.includes("without fuel") ||
+    t.includes("without power") ||
+    t.includes("without materials") ||
+    t.includes("without raw materials") ||
+    t.includes("without energy") ||
     t.includes("no energy") ||
-    t.includes("no resources") ||
     t.includes("no materials") ||
+    t.includes("no resources") ||
     t.includes("no input") ||
-    t.includes("instantly")
+    t.includes("no process") ||
+    t.includes("without soil") ||
+    t.includes("without sunlight")
   ) {
     return "false";
   }
 
+  // =========================
   // 🚀 EXAGGERATED
+  // =========================
   if (
-    t.includes("global") ||
+    t.includes("100%") ||
     t.includes("entire world") ||
-    t.includes("entire") ||
-    t.includes("transforming") ||
-    t.includes("eliminating") ||
-    t.includes("revolutionizing") ||
+    t.includes("entire global") ||
+    t.includes("global") ||
     t.includes("completely") ||
-    t.includes("100% sustainable")
+    t.includes("eliminating all") ||
+    t.includes("ending all") ||
+    t.includes("transforming the world")
   ) {
     return "exaggerated";
   }
 
+  // =========================
   // ✅ GENUINE
+  // =========================
   if (
-    (/\d/.test(t) || t.includes("%")) &&
+    (/\d+%/.test(t)) &&
     (t.includes("between") || t.includes("from") || t.includes("during")) &&
     (t.includes("verified") || t.includes("certified") || t.includes("iso"))
   ) {
     return "genuine";
   }
 
+  // =========================
   // ⚠️ MISLEADING
+  // =========================
+  if (
+    t.includes("some") ||
+    t.includes("certain") ||
+    t.includes("selected") ||
+    t.includes("may") ||
+    t.includes("can")
+  ) {
+    return "misleading";
+  }
+
   return "misleading";
 }
 
@@ -87,9 +114,17 @@ export async function analyzeClaimSimulated(
   await delay(1200);
   const nlpResult = analyzeNLP(textToAnalyze);
 
-  // 🔥 FINAL FIX: FALSE cannot be overridden
-  if (nlpResult.label !== 'false') {
-    const ruleLabel = classifyClaimRule(textToAnalyze);
+  // =========================
+  // 🔥 FINAL PRIORITY FIX
+  // =========================
+  const ruleLabel = classifyClaimRule(textToAnalyze);
+
+  // FALSE should ALWAYS win
+  if (ruleLabel === 'false') {
+    nlpResult.label = 'false';
+  }
+  // otherwise use rule result (stronger than NLP)
+  else {
     nlpResult.label = ruleLabel;
   }
 
@@ -144,7 +179,7 @@ export async function analyzeClaimSimulated(
 }
 
 // ================================
-// RISK CALCULATION
+// RISK CALCULATION (UNCHANGED)
 // ================================
 function calculateRiskScores(
   nlpResult: { label: ClassificationLabel; confidence: number; reasons: string[] },
