@@ -14,70 +14,80 @@ import { computeSimilarity } from './similarity';
 import { detectSuspiciousPhrases } from './explainer';
 
 // ================================
-// 🔥 CLEAN TEXT (IMPORTANT FIX)
+// 🔧 CLEAN OCR TEXT
 // ================================
 function cleanText(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^\w\s%]/g, '') // remove symbols
-    .replace(/\s+/g, ' ')
+    .replace(/[^a-z0-9%\s]/g, " ") // remove noise
+    .replace(/\s+/g, " ") // normalize spaces
     .trim();
 }
 
 // ================================
-// 🔥 STRONG RULE CLASSIFIER
+// RULE-BASED CLASSIFIER (FIXED)
 // ================================
 function classifyClaimRule(text: string): ClassificationLabel {
   const t = cleanText(text);
 
-  // ❌ FALSE (IMPOSSIBLE CLAIMS)
+  // ❌ FALSE (strong detection)
   if (
     t.includes("without any") ||
-    t.includes("without using") ||
+    t.includes("without") && (
+      t.includes("materials") ||
+      t.includes("energy") ||
+      t.includes("power") ||
+      t.includes("resources") ||
+      t.includes("fuel")
+    ) ||
+    t.includes("no materials") ||
     t.includes("no energy") ||
     t.includes("no power") ||
-    t.includes("no materials") ||
-    t.includes("no resources") ||
-    t.includes("no fuel") ||
     t.includes("no input") ||
-    t.includes("runs without") ||
-    t.includes("operate without") ||
-    t.includes("produced without")
+    t.includes("instantly")
   ) {
     return "false";
   }
 
-  // 🚀 EXAGGERATED (OVERCLAIMS)
+  // 🚀 EXAGGERATED
   if (
-    t.includes("100%") ||
     t.includes("entire world") ||
-    t.includes("entire global") ||
     t.includes("global") ||
-    t.includes("all pollution") ||
-    t.includes("completely") ||
     t.includes("eliminating") ||
-    t.includes("ending") ||
-    t.includes("transforming") ||
-    t.includes("revolutionizing")
+    t.includes("revolutionizing") ||
+    t.includes("completely") ||
+    t.includes("100 sustainable") ||
+    t.includes("100% sustainable")
   ) {
     return "exaggerated";
   }
 
-  // ✅ GENUINE (DATA + PROOF)
-  if (
-    (/\d/.test(t) || t.includes("%")) &&
-    (t.includes("between") || t.includes("from") || t.includes("during")) &&
-    (t.includes("verified") || t.includes("certified") || t.includes("iso"))
-  ) {
+  // ✅ GENUINE (VERY IMPORTANT FIX)
+  const hasNumber = /\d/.test(t) || t.includes("%");
+
+  const hasTime =
+    t.includes("between") ||
+    t.includes("from") ||
+    t.includes("during");
+
+  const hasVerification =
+    t.includes("verified") ||
+    t.includes("certified") ||
+    t.includes("iso") ||
+    t.includes("14001") ||
+    t.includes("50001");
+
+  // 🔥 KEY FIX: even if OCR breaks words, ISO or numbers still work
+  if (hasNumber && (hasTime || hasVerification)) {
     return "genuine";
   }
 
-  // ⚠️ DEFAULT
+  // ⚠️ MISLEADING
   return "misleading";
 }
 
 // ================================
-// MAIN FUNCTION
+// MAIN ANALYSIS FUNCTION
 // ================================
 export async function analyzeClaimSimulated(
   input: string,
@@ -89,11 +99,8 @@ export async function analyzeClaimSimulated(
   const startTime = Date.now();
   let textToAnalyze = input;
 
-  // ================================
-  // STEP 1: OCR / VIDEO
-  // ================================
+  // Step 1: Extract text
   onStepChange(1);
-
   if (inputType === 'image') {
     await delay(1500);
     textToAnalyze = await extractTextFromImage(input);
@@ -104,50 +111,34 @@ export async function analyzeClaimSimulated(
     await delay(500);
   }
 
-  // 🔥 CLEAN TEXT AFTER OCR
+  // 🔥 CLEAN TEXT BEFORE ANALYSIS
   textToAnalyze = cleanText(textToAnalyze);
 
-  // ================================
-  // STEP 2: RULE FIRST (IMPORTANT)
-  // ================================
+  // Step 2: NLP
   onStepChange(2);
-  await delay(800);
-
-  const ruleLabel = classifyClaimRule(textToAnalyze);
-
-  // ================================
-  // STEP 3: NLP (SECONDARY)
-  // ================================
+  await delay(1200);
   const nlpResult = analyzeNLP(textToAnalyze);
 
-  // 🔥 FINAL DECISION (RULE PRIORITY)
+  // 🔥 OVERRIDE WITH STRONG RULES
+  const ruleLabel = classifyClaimRule(textToAnalyze);
   nlpResult.label = ruleLabel;
 
-  // ================================
-  // STEP 4: HISTORY
-  // ================================
+  // Step 3: Historical comparison
   onStepChange(3);
-  await delay(800);
-
+  await delay(1000);
   const similarityResult = computeSimilarity(
     textToAnalyze,
     company.historicalClaims
   );
 
-  // ================================
-  // STEP 5: PHRASES
-  // ================================
+  // Step 4: Suspicious phrases
   onStepChange(4);
-  await delay(600);
-
+  await delay(800);
   const suspiciousPhrases = detectSuspiciousPhrases(textToAnalyze);
 
-  // ================================
-  // STEP 6: RISK
-  // ================================
+  // Step 5: Risk calculation
   onStepChange(5);
-  await delay(500);
-
+  await delay(600);
   const riskScores = calculateRiskScores(
     nlpResult,
     similarityResult,
@@ -155,10 +146,11 @@ export async function analyzeClaimSimulated(
     company
   );
 
-  // ================================
-  // FINAL
-  // ================================
+  // Step 6: Final result
   onStepChange(6);
+  await delay(400);
+
+  const processingTime = Date.now() - startTime;
 
   return {
     id: `analysis-${Date.now()}`,
@@ -166,26 +158,31 @@ export async function analyzeClaimSimulated(
     companyName: company.name,
     inputType,
     originalInput: input,
-    extractedText: textToAnalyze,
+    extractedText:
+      inputType !== 'text' ? textToAnalyze : undefined,
     classification: nlpResult,
     riskScores,
     suspiciousPhrases,
     historicalComparison: similarityResult,
-    sustainabilityCheck: generateSustainabilityCheck(nlpResult, company),
+    sustainabilityCheck: generateSustainabilityCheck(
+      nlpResult,
+      company
+    ),
     createdAt: new Date().toISOString(),
-    processingTime: Date.now() - startTime,
+    processingTime,
   };
 }
 
 // ================================
-// SAME AS BEFORE
+// RISK CALCULATION
 // ================================
 function calculateRiskScores(
   nlpResult: { label: ClassificationLabel; confidence: number; reasons: string[] },
   similarityResult: { consistencyScore: number; similarities: SimilarityResult[]; contradictions: SimilarityResult[] },
   suspiciousPhrases: SuspiciousPhrase[],
   company: Company
-) {
+): { greenwashingRisk: number; companyCredibility: number; riskLevel: RiskLevel } {
+
   const classificationRisk: Record<ClassificationLabel, number> = {
     genuine: 10,
     exaggerated: 45,
@@ -244,27 +241,39 @@ function calculateRiskScores(
   };
 }
 
+// ================================
+// SUSTAINABILITY CHECK
+// ================================
 function generateSustainabilityCheck(
   nlpResult: { label: ClassificationLabel; confidence: number; reasons: string[] },
   company: Company
 ) {
-  return {
-    sdgAlignment: ['SDG 12', 'SDG 13'],
-    griCompliance:
-      nlpResult.label === 'genuine'
-        ? 'compliant'
-        : nlpResult.label === 'exaggerated'
-        ? 'partial'
-        : 'non-compliant',
-    esgNotes:
-      nlpResult.label === 'genuine'
-        ? 'Strong verified claim.'
-        : nlpResult.label === 'exaggerated'
-        ? 'Overstated claim.'
-        : 'Weak or unclear claim.',
-  };
+  const possibleSDGs = [
+    'SDG 7: Clean Energy',
+    'SDG 12: Responsible Consumption',
+    'SDG 13: Climate Action',
+  ];
+
+  const sdgAlignment = possibleSDGs.slice(0, 2);
+
+  let griCompliance: 'compliant' | 'partial' | 'non-compliant' = 'non-compliant';
+
+  if (nlpResult.label === 'genuine') griCompliance = 'compliant';
+  else if (nlpResult.label === 'exaggerated') griCompliance = 'partial';
+
+  const esgNotes =
+    nlpResult.label === 'genuine'
+      ? 'Strong verified claim.'
+      : nlpResult.label === 'exaggerated'
+      ? 'Overstated sustainability impact.'
+      : 'Weak or unclear claim.';
+
+  return { sdgAlignment, griCompliance, esgNotes };
 }
 
-function delay(ms: number) {
-  return new Promise((res) => setTimeout(res, ms));
+// ================================
+// DELAY
+// ================================
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
