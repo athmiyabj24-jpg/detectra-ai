@@ -14,55 +14,69 @@ import { computeSimilarity } from './similarity';
 import { detectSuspiciousPhrases } from './explainer';
 
 // ================================
-// 🔧 CLEAN OCR TEXT
+// 🔧 CLEAN OCR TEXT (STRONG FIX)
 // ================================
 function cleanText(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9%\s]/g, " ") // remove noise
-    .replace(/\s+/g, " ") // normalize spaces
+    // Fix common OCR mistakes
+    .replace(/0/g, "o")
+    .replace(/1/g, "i")
+    .replace(/5/g, "s")
+    // Remove noise
+    .replace(/[^a-z0-9%\s]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 // ================================
-// RULE-BASED CLASSIFIER (FIXED)
+// 🧠 RULE-BASED CLASSIFIER (FINAL)
 // ================================
 function classifyClaimRule(text: string): ClassificationLabel {
   const t = cleanText(text);
 
-  // ❌ FALSE (strong detection)
+  // =========================
+  // ❌ FALSE (HIGHEST PRIORITY)
+  // =========================
   if (
-    t.includes("without any") ||
-    t.includes("without") && (
+    t.includes("without") &&
+    (
+      t.includes("material") ||
       t.includes("materials") ||
       t.includes("energy") ||
       t.includes("power") ||
-      t.includes("resources") ||
-      t.includes("fuel")
-    ) ||
-    t.includes("no materials") ||
-    t.includes("no energy") ||
-    t.includes("no power") ||
-    t.includes("no input") ||
-    t.includes("instantly")
+      t.includes("fuel") ||
+      t.includes("resource") ||
+      t.includes("water") ||
+      t.includes("soil") ||
+      t.includes("sunlight") ||
+      t.includes("battery") ||
+      t.includes("batteries")
+    )
   ) {
     return "false";
   }
 
+  // =========================
   // 🚀 EXAGGERATED
+  // =========================
   if (
+    (t.includes("100") && t.includes("sustainable")) ||
     t.includes("entire world") ||
+    t.includes("whole world") ||
     t.includes("global") ||
-    t.includes("eliminating") ||
-    t.includes("revolutionizing") ||
-    t.includes("completely") ||
-    t.includes("100 sustainable") ||
-    t.includes("100% sustainable")
+    t.includes("all world") ||
+    t.includes("entire population") ||
+    t.includes("eliminating all") ||
+    t.includes("ending all") ||
+    t.includes("completely sustainable")
   ) {
     return "exaggerated";
   }
 
-  // ✅ GENUINE (VERY IMPORTANT FIX)
+  // =========================
+  // ✅ GENUINE
+  // =========================
   const hasNumber = /\d/.test(t) || t.includes("%");
 
   const hasTime =
@@ -75,19 +89,21 @@ function classifyClaimRule(text: string): ClassificationLabel {
     t.includes("certified") ||
     t.includes("iso") ||
     t.includes("14001") ||
-    t.includes("50001");
+    t.includes("50001") ||
+    t.includes("14064");
 
-  // 🔥 KEY FIX: even if OCR breaks words, ISO or numbers still work
   if (hasNumber && (hasTime || hasVerification)) {
     return "genuine";
   }
 
+  // =========================
   // ⚠️ MISLEADING
+  // =========================
   return "misleading";
 }
 
 // ================================
-// MAIN ANALYSIS FUNCTION
+// 🚀 MAIN ANALYSIS FUNCTION
 // ================================
 export async function analyzeClaimSimulated(
   input: string,
@@ -111,15 +127,15 @@ export async function analyzeClaimSimulated(
     await delay(500);
   }
 
-  // 🔥 CLEAN TEXT BEFORE ANALYSIS
+  // 🔥 CLEAN OCR TEXT
   textToAnalyze = cleanText(textToAnalyze);
 
-  // Step 2: NLP
+  // Step 2: NLP (kept but overridden)
   onStepChange(2);
   await delay(1200);
   const nlpResult = analyzeNLP(textToAnalyze);
 
-  // 🔥 OVERRIDE WITH STRONG RULES
+  // 🔥 FINAL OVERRIDE (MOST IMPORTANT)
   const ruleLabel = classifyClaimRule(textToAnalyze);
   nlpResult.label = ruleLabel;
 
@@ -174,7 +190,7 @@ export async function analyzeClaimSimulated(
 }
 
 // ================================
-// RISK CALCULATION
+// 📊 RISK CALCULATION
 // ================================
 function calculateRiskScores(
   nlpResult: { label: ClassificationLabel; confidence: number; reasons: string[] },
@@ -242,7 +258,7 @@ function calculateRiskScores(
 }
 
 // ================================
-// SUSTAINABILITY CHECK
+// 🌱 SUSTAINABILITY CHECK
 // ================================
 function generateSustainabilityCheck(
   nlpResult: { label: ClassificationLabel; confidence: number; reasons: string[] },
@@ -272,7 +288,7 @@ function generateSustainabilityCheck(
 }
 
 // ================================
-// DELAY
+// ⏳ DELAY
 // ================================
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
