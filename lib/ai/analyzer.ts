@@ -7,7 +7,6 @@ import type {
   SuspiciousPhrase,
   SimilarityResult 
 } from '../types';
-
 import { analyzeNLP } from './nlp';
 import { extractTextFromImage } from './ocr';
 import { transcribeVideo } from './video';
@@ -15,84 +14,96 @@ import { computeSimilarity } from './similarity';
 import { detectSuspiciousPhrases } from './explainer';
 
 // ================================
-// 🧠 NORMALIZE TEXT (OCR FIX)
+// 🔧 CLEAN OCR TEXT (STRONG FIX)
 // ================================
-function normalizeText(text: string): string {
+function cleanText(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9% ]/g, " ")
+    // Fix common OCR mistakes
+    .replace(/0/g, "o")
+    .replace(/1/g, "i")
+    .replace(/5/g, "s")
+    // Remove noise
+    .replace(/[^a-z0-9%\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 // ================================
-// 🔥 CLASSIFIER (FINAL FIXED)
+// 🧠 RULE-BASED CLASSIFIER (FINAL)
 // ================================
 function classifyClaimRule(text: string): ClassificationLabel {
+  const t = cleanText(text);
 
-  const t = normalizeText(text);
-
-  // ❌ FALSE
+  // =========================
+  // ❌ FALSE (HIGHEST PRIORITY)
+  // =========================
   if (
     t.includes("without") &&
     (
       t.includes("material") ||
-      t.includes("resource") ||
+      t.includes("materials") ||
       t.includes("energy") ||
+      t.includes("power") ||
       t.includes("fuel") ||
+      t.includes("resource") ||
       t.includes("water") ||
       t.includes("soil") ||
-      t.includes("sunlight")
+      t.includes("sunlight") ||
+      t.includes("battery") ||
+      t.includes("batteries")
     )
   ) {
     return "false";
   }
 
+  // =========================
   // 🚀 EXAGGERATED
+  // =========================
   if (
-    t.includes("100") ||
+    (t.includes("100") && t.includes("sustainable")) ||
     t.includes("entire world") ||
     t.includes("whole world") ||
     t.includes("global") ||
-    t.includes("everyone") ||
-    t.includes("completely") ||
+    t.includes("all world") ||
+    t.includes("entire population") ||
     t.includes("eliminating all") ||
-    t.includes("ending all")
+    t.includes("ending all") ||
+    t.includes("completely sustainable")
   ) {
     return "exaggerated";
   }
 
+  // =========================
   // ✅ GENUINE
-  const hasNumber = /\d/.test(t);
+  // =========================
+  const hasNumber = /\d/.test(t) || t.includes("%");
+
   const hasTime =
     t.includes("between") ||
     t.includes("from") ||
     t.includes("during");
 
   const hasVerification =
-    t.includes("iso") ||
-    t.includes("certified") ||
     t.includes("verified") ||
-    t.includes("fsc") ||
-    t.includes("rainforest");
+    t.includes("certified") ||
+    t.includes("iso") ||
+    t.includes("14001") ||
+    t.includes("50001") ||
+    t.includes("14064");
 
-  const hasSustainability =
-    t.includes("emission") ||
-    t.includes("efficiency") ||
-    t.includes("materials") ||
-    t.includes("sourced") ||
-    t.includes("reduction");
-
-  if (hasNumber && hasTime && hasVerification && hasSustainability) {
+  if (hasNumber && (hasTime || hasVerification)) {
     return "genuine";
   }
 
+  // =========================
   // ⚠️ MISLEADING
+  // =========================
   return "misleading";
 }
 
 // ================================
-// 🚀 MAIN FUNCTION
+// 🚀 MAIN ANALYSIS FUNCTION
 // ================================
 export async function analyzeClaimSimulated(
   input: string,
@@ -104,7 +115,7 @@ export async function analyzeClaimSimulated(
   const startTime = Date.now();
   let textToAnalyze = input;
 
-  // STEP 1: Extract text
+  // Step 1: Extract text
   onStepChange(1);
   if (inputType === 'image') {
     await delay(1500);
@@ -116,18 +127,19 @@ export async function analyzeClaimSimulated(
     await delay(500);
   }
 
-  // 🔥 FIX OCR TEXT
-  textToAnalyze = normalizeText(textToAnalyze);
+  // 🔥 CLEAN OCR TEXT
+  textToAnalyze = cleanText(textToAnalyze);
 
-  // STEP 2: NLP
+  // Step 2: NLP (kept but overridden)
   onStepChange(2);
   await delay(1200);
   const nlpResult = analyzeNLP(textToAnalyze);
 
-  // 🔥 FORCE FINAL LABEL
-  nlpResult.label = classifyClaimRule(textToAnalyze);
+  // 🔥 FINAL OVERRIDE (MOST IMPORTANT)
+  const ruleLabel = classifyClaimRule(textToAnalyze);
+  nlpResult.label = ruleLabel;
 
-  // STEP 3: Historical comparison
+  // Step 3: Historical comparison
   onStepChange(3);
   await delay(1000);
   const similarityResult = computeSimilarity(
@@ -135,12 +147,12 @@ export async function analyzeClaimSimulated(
     company.historicalClaims
   );
 
-  // STEP 4: Suspicious phrases
+  // Step 4: Suspicious phrases
   onStepChange(4);
   await delay(800);
   const suspiciousPhrases = detectSuspiciousPhrases(textToAnalyze);
 
-  // STEP 5: Risk calculation
+  // Step 5: Risk calculation
   onStepChange(5);
   await delay(600);
   const riskScores = calculateRiskScores(
@@ -150,7 +162,7 @@ export async function analyzeClaimSimulated(
     company
   );
 
-  // STEP 6: Final result
+  // Step 6: Final result
   onStepChange(6);
   await delay(400);
 
@@ -162,12 +174,16 @@ export async function analyzeClaimSimulated(
     companyName: company.name,
     inputType,
     originalInput: input,
-    extractedText: textToAnalyze,
+    extractedText:
+      inputType !== 'text' ? textToAnalyze : undefined,
     classification: nlpResult,
     riskScores,
     suspiciousPhrases,
     historicalComparison: similarityResult,
-    sustainabilityCheck: generateSustainabilityCheck(nlpResult), // ✅ FIXED
+    sustainabilityCheck: generateSustainabilityCheck(
+      nlpResult,
+      company
+    ),
     createdAt: new Date().toISOString(),
     processingTime,
   };
@@ -199,10 +215,31 @@ function calculateRiskScores(
 
   baseRisk = Math.min(100, baseRisk + Math.min(phraseRisk, 25));
 
-  const inconsistencyPenalty = (100 - similarityResult.consistencyScore) * 0.2;
+  const inconsistencyPenalty =
+    (100 - similarityResult.consistencyScore) * 0.2;
+
   baseRisk = Math.min(100, baseRisk + inconsistencyPenalty);
 
-  const companyCredibility = 60;
+  if (similarityResult.contradictions.length > 0) {
+    baseRisk = Math.min(
+      100,
+      baseRisk + similarityResult.contradictions.length * 10
+    );
+  }
+
+  const verifiedClaimsRatio =
+    company.historicalClaims.filter((c) => c.verified).length /
+    Math.max(company.historicalClaims.length, 1);
+
+  const certificationBonus =
+    company.sustainabilityCertifications.length * 5;
+
+  const companyCredibility = Math.min(
+    100,
+    Math.round(
+      verifiedClaimsRatio * 60 + certificationBonus + 20
+    )
+  );
 
   const greenwashingRisk = Math.round(
     baseRisk * (1 - companyCredibility * 0.002)
@@ -221,28 +258,37 @@ function calculateRiskScores(
 }
 
 // ================================
-// 🌱 SUSTAINABILITY CHECK (FIXED)
+// 🌱 SUSTAINABILITY CHECK
 // ================================
 function generateSustainabilityCheck(
-  nlpResult: { label: ClassificationLabel; confidence: number; reasons: string[] }
+  nlpResult: { label: ClassificationLabel; confidence: number; reasons: string[] },
+  company: Company
 ) {
-  return {
-    sdgAlignment: ['SDG 12', 'SDG 13'],
-    griCompliance:
-      nlpResult.label === 'genuine'
-        ? 'compliant'
-        : nlpResult.label === 'exaggerated'
-        ? 'partial'
-        : 'non-compliant',
-    esgNotes:
-      nlpResult.label === 'genuine'
-        ? 'Strong verified claim.'
-        : nlpResult.label === 'exaggerated'
-        ? 'Overstated sustainability impact.'
-        : 'Weak or unclear claim.',
-  };
+  const possibleSDGs = [
+    'SDG 7: Clean Energy',
+    'SDG 12: Responsible Consumption',
+    'SDG 13: Climate Action',
+  ];
+
+  const sdgAlignment = possibleSDGs.slice(0, 2);
+
+  let griCompliance: 'compliant' | 'partial' | 'non-compliant' = 'non-compliant';
+
+  if (nlpResult.label === 'genuine') griCompliance = 'compliant';
+  else if (nlpResult.label === 'exaggerated') griCompliance = 'partial';
+
+  const esgNotes =
+    nlpResult.label === 'genuine'
+      ? 'Strong verified claim.'
+      : nlpResult.label === 'exaggerated'
+      ? 'Overstated sustainability impact.'
+      : 'Weak or unclear claim.';
+
+  return { sdgAlignment, griCompliance, esgNotes };
 }
 
+// ================================
+// ⏳ DELAY
 // ================================
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
