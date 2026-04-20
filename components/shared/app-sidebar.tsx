@@ -63,7 +63,7 @@ export function AppSidebar({ variant }: AppSidebarProps) {
             <Leaf className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">GreenVerify AI</span>
+            <span className="text-sm font-semibold">Detectra AI</span>
             <span className="text-xs text-muted-foreground">
               {variant === 'admin' ? 'Admin Portal' : 'User Portal'}
             </span>

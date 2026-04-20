@@ -9,7 +9,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'GreenVerify AI - Greenwashing Detection System',
+  title: 'Detectra AI - Greenwashing Detection System',
   description: 'AI-powered greenwashing detection and claim verification platform. Analyze environmental claims using NLP, historical data comparison, and explainable AI.',
   generator: 'v0.app',
   icons: {

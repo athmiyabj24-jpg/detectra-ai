@@ -20,7 +20,7 @@ const INITIAL_MESSAGES: Message[] = [
   {
     id: '1',
     role: 'assistant',
-    content: 'Hello! I\'m your GreenVerify AI assistant. I can help you understand greenwashing, analyze environmental claims, and explain sustainability standards. What would you like to know?',
+    content: 'Hello! I\'m your Detectra AI assistant. I can help you understand greenwashing, analyze environmental claims, and explain sustainability standards. What would you like to know?',
     timestamp: new Date(),
   },
 ];

@@ -64,7 +64,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="relative z-10 mt-12 text-center text-sm text-muted-foreground">
-        <p>GreenVerify AI - Sustainability Claim Verification Platform</p>
+        <p>Detectra AI - Sustainability Claim Verification Platform</p>
       </footer>
     </main>
   );

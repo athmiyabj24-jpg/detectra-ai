@@ -44,7 +44,7 @@ export function LoginForm() {
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
           <Leaf className="h-7 w-7 text-primary" />
         </div>
-        <CardTitle className="text-2xl">Welcome to GreenVerify AI</CardTitle>
+        <CardTitle className="text-2xl">Welcome to Detectra AI</CardTitle>
         <CardDescription>
           Sign in to detect and analyze greenwashing claims
         </CardDescription>
