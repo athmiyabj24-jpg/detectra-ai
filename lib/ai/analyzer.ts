@@ -29,11 +29,10 @@ function normalize(text: string): string {
 // 🔥 CLASSIFIER (FINAL FIX)
 // ================================
 function classifyClaimRule(text: string): ClassificationLabel {
-  const raw = text.toLowerCase();
-  const t = normalize(text);
+  const t = text.toLowerCase();
 
   // ======================
-  // ❌ FALSE (STRICT + FIRST)
+  // ❌ FALSE (strong keywords)
   // ======================
   if (
     t.includes("without") ||
@@ -41,7 +40,10 @@ function classifyClaimRule(text: string): ClassificationLabel {
     t.includes("no fuel") ||
     t.includes("no materials") ||
     t.includes("no resources") ||
-    t.includes("no battery")
+    t.includes("no battery") ||
+    t.includes("no water") ||
+    t.includes("no soil") ||
+    t.includes("no sunlight")
   ) {
     return "false";
   }
@@ -51,9 +53,9 @@ function classifyClaimRule(text: string): ClassificationLabel {
   // ======================
   if (
     t.includes("100") ||
-    t.includes("entire world") ||
-    t.includes("whole world") ||
+    t.includes("entire") ||
     t.includes("global") ||
+    t.includes("world") ||
     t.includes("everyone") ||
     t.includes("completely") ||
     t.includes("eliminating") ||
@@ -63,20 +65,13 @@ function classifyClaimRule(text: string): ClassificationLabel {
   }
 
   // ======================
-  // ✅ GENUINE (ROBUST)
+  // ✅ GENUINE (pattern-based)
   // ======================
-  const hasNumber = /\d/.test(raw) || t.includes("%");
-  const hasYear = /20\d{2}/.test(raw) || t.includes("202") || t.includes("203");
-
-  const hasProof =
-    t.includes("iso") ||
-    t.includes("lso") ||         // OCR mistake
-    t.includes("verified") ||
-    t.includes("verifed") ||
-    t.includes("certified") ||
-    t.includes("certifed");
-
-  if (hasNumber && (hasYear || hasProof)) {
+  if (
+    (t.includes("%") || /\d/.test(t)) &&
+    (t.includes("202") || t.includes("2025") || t.includes("2024")) &&
+    (t.includes("iso") || t.includes("verified") || t.includes("certified"))
+  ) {
     return "genuine";
   }
 
